@@ -182,7 +182,7 @@ export default function Home() {
               <ul className="space-y-3 mb-8">
                 <li className="flex items-center gap-2">
                   <Check className="w-5 h-5 text-green-600" />
-                  <span>1 repository</span>
+                  <span>3 repository</span>
                 </li>
                 <li className="flex items-center gap-2">
                   <Check className="w-5 h-5 text-green-600" />
@@ -211,7 +211,7 @@ export default function Home() {
               </div>
               <h3 className="text-2xl font-bold mb-2">Pro</h3>
               <div className="mb-6">
-                <span className="text-4xl font-bold">49€</span>
+                <span className="text-4xl font-bold">19,99€</span>
                 <span className="text-gray-600 dark:text-gray-400">/mois</span>
               </div>
               <ul className="space-y-3 mb-8">
