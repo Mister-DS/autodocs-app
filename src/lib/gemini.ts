@@ -1,83 +1,77 @@
-import { GoogleGenerativeAI } from '@google/generative-ai'
-
-if (!process.env.GEMINI_API_KEY) {
-  throw new Error('GEMINI_API_KEY is not defined in environment variables')
+export async function generateCodeDocumentation(
+  code: string,
+  language: string
+): Promise<string> {
+  try {
+    // Génération simple de documentation basée sur l'analyse du code
+    const lines = code.split('\n')
+    const totalLines = lines.length
+    
+    // Extraire les imports/requires
+    const imports = lines
+      .filter(line => line.trim().startsWith('import ') || line.trim().startsWith('require('))
+      .slice(0, 10)
+    
+    // Extraire les fonctions/classes
+    const functions = lines
+      .filter(line => 
+        line.includes('function ') || 
+        line.includes('const ') || 
+        line.includes('class ') ||
+        line.includes('export ')
+      )
+      .slice(0, 10)
+    
+    // Construire la documentation
+    let doc = `# Documentation ${language}\n\n`
+    
+    doc += `## 📊 Statistiques\n`
+    doc += `- **Lignes de code :** ${totalLines}\n`
+    doc += `- **Langage :** ${language}\n\n`
+    
+    if (imports.length > 0) {
+      doc += `## 📦 Dépendances et Imports\n\n`
+      doc += '```' + language.toLowerCase() + '\n'
+      doc += imports.join('\n')
+      doc += '\n```\n\n'
+    }
+    
+    if (functions.length > 0) {
+      doc += `## 🔧 Fonctions et Composants Principaux\n\n`
+      doc += '```' + language.toLowerCase() + '\n'
+      doc += functions.slice(0, 5).join('\n')
+      doc += '\n```\n\n'
+    }
+    
+    // Analyser le contenu pour des mots-clés
+    const hasAsync = code.includes('async')
+    const hasExport = code.includes('export')
+    const hasClass = code.includes('class ')
+    const hasInterface = code.includes('interface ')
+    const hasType = code.includes('type ')
+    
+    doc += `## 💡 Caractéristiques Détectées\n\n`
+    
+    if (hasAsync) doc += `- ✅ **Code asynchrone** : Utilise des fonctions async/await\n`
+    if (hasExport) doc += `- ✅ **Module exporté** : Contient des exports ES6\n`
+    if (hasClass) doc += `- ✅ **Programmation orientée objet** : Contient des classes\n`
+    if (hasInterface || hasType) doc += `- ✅ **TypeScript** : Utilise des types et interfaces\n`
+    
+    doc += `\n## 📝 Résumé\n\n`
+    doc += `Ce fichier ${language} contient ${totalLines} lignes de code. `
+    
+    if (imports.length > 0) {
+      doc += `Il importe ${imports.length} dépendances. `
+    }
+    
+    if (functions.length > 0) {
+      doc += `Il définit ${functions.length} fonctions ou composants principaux.`
+    }
+    
+    return doc
+    
+  } catch (error: any) {
+    console.error("Erreur génération doc:", error)
+    return `# ${language}\n\n**Fichier analysé**\n\nDocumentation basique générée automatiquement.\n\nLongueur: ${code.length} caractères`
+  }
 }
-
-// Initialize Gemini AI
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
-
-/**
- * Get Gemini model instance
- * @param modelName - Default: gemini-1.5-flash (fastest, free)
- */
-export function getGeminiModel(modelName: string = 'gemini-1.5-flash') {
-  return genAI.getGenerativeModel({ model: modelName })
-}
-
-/**
- * Analyze code and generate documentation
- */
-export async function generateCodeDocumentation(code: string, language: string): Promise<string> {
-  const model = getGeminiModel()
-  
-  const prompt = `Tu es un expert en documentation technique. Analyse ce code ${language} et génère une documentation claire et concise en français.
-
-Instructions :
-- Explique ce que fait le code
-- Liste les fonctions principales et leurs rôles
-- Identifie les dépendances importantes
-- Donne des exemples d'utilisation si pertinent
-- Reste concis et professionnel
-
-Code à analyser :
-\`\`\`${language}
-${code}
-\`\`\`
-
-Génère la documentation en format Markdown.`
-
-  const result = await model.generateContent(prompt)
-  const response = result.response
-  return response.text()
-}
-
-/**
- * Generate a summary of commit changes
- */
-export async function summarizeCommit(diff: string): Promise<string> {
-  const model = getGeminiModel()
-  
-  const prompt = `Résume ce changement git en une phrase claire et concise en français.
-
-Diff :
-${diff}
-
-Réponds en une seule phrase qui décrit l'essentiel du changement.`
-
-  const result = await model.generateContent(prompt)
-  const response = result.response
-  return response.text()
-}
-
-/**
- * Answer questions about code (for chat feature)
- */
-export async function answerCodeQuestion(question: string, codeContext: string): Promise<string> {
-  const model = getGeminiModel()
-  
-  const prompt = `Tu es un assistant qui aide à comprendre du code. Réponds à la question de l'utilisateur en te basant sur le contexte fourni.
-
-Contexte du code :
-${codeContext}
-
-Question : ${question}
-
-Réponds de manière claire et précise en français.`
-
-  const result = await model.generateContent(prompt)
-  const response = result.response
-  return response.text()
-}
-
-export default genAI

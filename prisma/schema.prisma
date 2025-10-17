@@ -3,9 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model Account {
@@ -39,55 +38,55 @@ model Session {
 }
 
 model User {
-  id            String    @id @default(cuid())
+  id            String       @id
   name          String?
-  email         String?   @unique
+  email         String?      @unique
   emailVerified DateTime?
   image         String?
   accounts      Account[]
   sessions      Session[]
   repositories  Repository[]
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
 }
 
 model Repository {
-  id          String   @id @default(cuid())
+  id          String     @id @default(cuid())
   userId      String
-  githubId    Int      @unique
+  githubId    Int        @unique
   name        String
   fullName    String
   description String?
   url         String
   language    String?
-  isPrivate   Boolean  @default(false)
-  isActive    Boolean  @default(true)
+  isPrivate   Boolean    @default(false)
+  isActive    Boolean    @default(true)
   lastSync    DateTime?
   
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   documents   Document[]
   
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
 
   @@index([userId])
   @@index([githubId])
 }
 
 model Document {
-  id           String   @id @default(cuid())
+  id           String     @id @default(cuid())
   repositoryId String
   filePath     String
   fileName     String
-  content      String   @db.Text
-  summary      String?  @db.Text
+  content      String     @db.Text
+  summary      String?    @db.Text
   language     String?
-  type         String   // "readme", "code", "config", "api"
+  type         String
   
   repository   Repository @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
   
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
 
   @@unique([repositoryId, filePath])
   @@index([repositoryId])

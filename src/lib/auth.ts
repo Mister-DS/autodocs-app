@@ -1,5 +1,6 @@
 import NextAuth from "next-auth"
 import GitHub from "next-auth/providers/github"
+import { db } from "@/lib/db"
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
@@ -14,19 +15,39 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     }),
   ],
   session: {
-    strategy: "jwt", // Utilise JWT au lieu de DB
+    strategy: "jwt",
   },
   callbacks: {
     async jwt({ token, account, profile }) {
       if (account && profile) {
         token.accessToken = account.access_token
         token.id = profile.id
+        
+        // Créer ou mettre à jour l'utilisateur dans la DB
+        try {
+          await db.user.upsert({
+            where: { id: String(profile.id) },
+            update: {
+              name: profile.name || null,
+              email: profile.email || null,
+              image: profile.avatar_url || null,
+            },
+            create: {
+              id: String(profile.id),
+              name: profile.name || null,
+              email: profile.email || null,
+              image: profile.avatar_url || null,
+            }
+          })
+        } catch (error) {
+          console.error("Erreur création utilisateur:", error)
+        }
       }
       return token
     },
     async session({ session, token }) {
       if (session.user) {
-        session.user.id = token.id as string
+        session.user.id = String(token.id)
         session.accessToken = token.accessToken as string
       }
       return session
