@@ -1,58 +1,63 @@
-// Fichier : src/lib/gemini.ts
+// src/lib/gemini.ts
 
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
-const geminiApiKey = process.env.GEMINI_API_KEY;
-if (!geminiApiKey) {
-  throw new Error("GEMINI_API_KEY is not defined in the environment variables.");
-}
+// 1. On initialise le client Gemini avec ta clé d'API.
+// Il lit automatiquement la variable GEMINI_API_KEY depuis ton fichier .env.
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
-const genAI = new GoogleGenerativeAI(geminiApiKey);
+// On choisit le modèle le plus adapté à l'analyse de code.
+const model = genAI.getGenerativeModel({ model: 'gemini-1.5-pro-latest' });
 
-export async function generateDocsWithAI(fileContent: string, fileName:string): Promise<string> {
-  console.log(`[Gemini AI] Starting generation for file: ${fileName}`);
+// 2. Le "Prompt" : C'est l'instruction précise qu'on donne à l'IA.
+// C'est la partie la plus importante pour obtenir un résultat de qualité.
+const getPrompt = (fileContent: string, language: string) => `
+RÔLE:
+Tu es un développeur senior expert en documentation technique, spécialisé en ${language}. Ton style est clair, concis et utile pour d'autres développeurs.
 
+TÂCHE:
+Analyse le fichier de code suivant et génère une documentation complète et bien structurée en Markdown.
+
+FORMAT DE SORTIE OBLIGATOIRE:
+Dois impérativement suivre cette structure Markdown, sans ajouter de texte d'introduction ou de conclusion :
+
+### Résumé
+*__Objectif Principal:__* Une phrase expliquant le rôle de ce fichier.
+
+### Dépendances Clés
+- **Nom de la dépendance**: Courte explication de son utilité.
+- ... (liste les 2 ou 3 dépendances les plus importantes)
+
+### Analyse Détaillée
+---
+#### Fonction / Composant : \`nomDeLaFonction\`
+- **Description**: Explique ce que fait cette fonction.
+- **Paramètres**:
+    - \`nomDuParamètre\` (\`type\`) : Description du paramètre.
+- **Retourne**: (\`type\`) Description de la valeur de retour.
+---
+(Répète cette section pour chaque fonction, méthode ou composant majeur du fichier)
+
+### Logique Métier
+- Explique en termes simples toute logique complexe, algorithme ou règle métier importante présente dans le code.
+
+FICHIER DE CODE À ANALYSER CI-DESSOUS:
+\`\`\`${language}
+${fileContent}
+\`\`\`
+`;
+
+// 3. La fonction principale que notre API appellera pour faire le travail.
+export async function generateDocumentationForFile(fileContent: string, language: string): Promise<string> {
   try {
-    // =========================================================
-    // CORRECTION ICI : Changement du nom du modèle
-    // =========================================================
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
-
-    const prompt = `
-      **ROLE**: Tu es un expert en développement logiciel et documentation technique.
-      **TASK**: Analyse le contenu du fichier de code suivant, nommé "${fileName}", et génère une documentation technique complète et professionnelle en Markdown.
-      **FORMAT**:
-      La documentation doit être structurée, claire, et inclure les sections suivantes :
-
-      ### 📝 Résumé
-      Une description globale de l'objectif et de la responsabilité principale de ce fichier en 2-3 phrases.
-
-      ### ✨ Fonctionnalités clés
-      Une liste à puces des fonctions, classes, ou composants les plus importants et leur rôle. Sois concis.
-
-      ### 📦 Dépendances Principales
-      Liste les imports les plus significatifs et explique brièvement leur utilité dans ce fichier.
-
-      ### 🤔 Logique de fonctionnement
-      Explique la logique ou le workflow principal du code. Par exemple, comment les fonctions interagissent-elles ?
-
-      ### 💡 Améliorations Possibles
-      Suggère 1 ou 2 pistes d'amélioration pertinentes.
-
-      **IMPORTANT**: Ne produis que le contenu Markdown, sans aucune phrase d'introduction comme "Voici la documentation".
-
-      --- DEBUT DU CODE ---
-      ${fileContent}
-      --- FIN DU CODE ---
-    `;
-
+    const prompt = getPrompt(fileContent, language);
     const result = await model.generateContent(prompt);
-    const response = await result.response;
+    const response = result.response;
     const text = response.text();
-
     return text;
   } catch (error) {
-    console.error("[Gemini AI] Error during documentation generation:", error);
-    return `## ❌ Erreur de Génération\n\nImpossible de générer la documentation pour **${fileName}**.\n\nL'API Gemini a peut-être rencontré un problème. Veuillez réessayer plus tard.`;
+    console.error("Erreur lors de la génération de la documentation par Gemini:", error);
+    // En cas d'erreur de l'IA, on renvoie un message d'erreur clair.
+    return "### Erreur\nLa génération de la documentation par l'IA a échoué. Veuillez réessayer plus tard.";
   }
 }

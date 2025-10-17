@@ -1,61 +1,38 @@
+// src/lib/auth.ts
+
 import NextAuth from "next-auth"
 import GitHub from "next-auth/providers/github"
+import { PrismaAdapter } from "@auth/prisma-adapter"
 import { db } from "@/lib/db"
 
-export const { handlers, signIn, signOut, auth } = NextAuth({
+export const { handlers, auth, signIn, signOut } = NextAuth({
+  adapter: PrismaAdapter(db),
   providers: [
     GitHub({
-      clientId: process.env.GITHUB_CLIENT_ID!,
-      clientSecret: process.env.GITHUB_CLIENT_SECRET!,
-      authorization: {
-        params: {
-          scope: 'read:user user:email repo',
-        },
-      },
+      clientId: process.env.GITHUB_CLIENT_ID,
+      clientSecret: process.env.GITHUB_CLIENT_SECRET,
     }),
   ],
-  session: {
-    strategy: "jwt",
-  },
   callbacks: {
-    async jwt({ token, account, profile }) {
-      if (account && profile) {
-        token.accessToken = account.access_token
-        token.id = profile.id
-        
-        // Créer ou mettre à jour l'utilisateur dans la DB
-        try {
-          await db.user.upsert({
-            where: { id: String(profile.id) },
-            update: {
-              name: profile.name || null,
-              email: profile.email || null,
-              image: profile.avatar_url || null,
-            },
-            create: {
-              id: String(profile.id),
-              name: profile.name || null,
-              email: profile.email || null,
-              image: profile.avatar_url || null,
-            }
-          })
-        } catch (error) {
-          console.error("Erreur création utilisateur:", error)
-        }
+    // --- LA CORRECTION EST ICI ---
+    // Le "callbacks" nous permet de contrôler ce qui est dans la session.
+
+    async jwt({ token, account }) {
+      // Quand l'utilisateur se connecte, l'objet `account` contient l'accessToken de GitHub.
+      // On le sauvegarde dans le `token` JWT.
+      if (account) {
+        token.accessToken = account.access_token;
       }
-      return token
+      return token;
     },
+    
     async session({ session, token }) {
-      if (session.user) {
-        session.user.id = String(token.id)
-        session.accessToken = token.accessToken as string
+      // À chaque fois qu'une session est lue, on prend l'accessToken
+      // depuis le `token` JWT et on le met dans l'objet `session.user`.
+      if (token.accessToken && session.user) {
+        session.user.accessToken = token.accessToken as string;
       }
-      return session
+      return session;
     },
   },
-  pages: {
-    signIn: '/login',
-    error: '/login',
-  },
-  debug: process.env.NODE_ENV === 'development',
 })
